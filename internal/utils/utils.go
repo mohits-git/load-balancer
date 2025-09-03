@@ -9,9 +9,9 @@ import (
 )
 
 // RequestLogger logs incoming clients requests with client addr info
-func RequestLogger(next http.HandlerFunc) http.HandlerFunc {
+func HTTPRequestLogger(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, port := GetClientRemoteAddrInfo(r)
+		ip, port := GetHTTPClientRemoteAddrInfo(r)
 
 		// client info
 		log.Printf("Received a request from %s:%s\n\n", ip, port)
@@ -30,7 +30,7 @@ func RequestLogger(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // returns the ip and port from the client http request
-func GetClientRemoteAddrInfo(r *http.Request) (string, string) {
+func GetHTTPClientRemoteAddrInfo(r *http.Request) (string, string) {
 	addr := r.RemoteAddr
 
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {

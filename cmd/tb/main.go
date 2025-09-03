@@ -15,9 +15,15 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello From Backend Server at %s\n", PORT)
 }
 
+func HandleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Replied with a Ok status\n\n")
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", utils.RequestLogger(HandleHome))
+	mux.HandleFunc("GET /", utils.HTTPRequestLogger(HandleHome))
+	mux.HandleFunc("GET /health", utils.HTTPRequestLogger(HandleHealthCheck))
 
 	fmt.Println("Server Listening on port", PORT)
 	http.ListenAndServe(PORT, mux)
