@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/mohits-git/load-balancer/internal/l4lb"
+	"github.com/mohits-git/load-balancer/internal/utils"
 )
 
 var PORT = ":8081"
@@ -21,23 +22,14 @@ func HandleHealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	lb := l4lb.NewL4LoadBalancer()
-
-	// configure servers
-	lb.AddServer("127.0.0.1:8081")
-
-	log.Println("Starting Layer 4 TCP Load Balancer at port :8080")
-	if err := lb.Start(); err != nil {
-		log.Println("Error starting the load balancer", err)
+	if port := os.Getenv("PORT"); port != "" {
+		PORT = ":" + port
 	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", utils.HTTPRequestLogger(HandleHome))
+	mux.HandleFunc("GET /health", utils.HTTPRequestLogger(HandleHealthCheck))
+
+	fmt.Println("Server Listening on port", PORT)
+	http.ListenAndServe(PORT, mux)
 }
-
-
-// func main() {
-// 	mux := http.NewServeMux()
-// 	mux.HandleFunc("GET /", utils.HTTPRequestLogger(HandleHome))
-// 	mux.HandleFunc("GET /health", utils.HTTPRequestLogger(HandleHealthCheck))
-//
-// 	fmt.Println("Server Listening on port", PORT)
-// 	http.ListenAndServe(PORT, mux)
-// }

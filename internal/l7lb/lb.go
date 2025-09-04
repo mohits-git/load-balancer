@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"sync/atomic"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 	"github.com/mohits-git/load-balancer/internal/utils"
@@ -12,11 +14,13 @@ import (
 
 type L7LoadBalancer struct {
 	servers []types.Server
+	algo    types.LoadBalancingAlgorithm
 }
 
-func NewL7LoadBalancer() types.LoadBalancer {
+func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
 	return &L7LoadBalancer{
 		servers: []types.Server{},
+		algo:    lbalgo,
 	}
 }
 
@@ -25,15 +29,13 @@ func (lb *L7LoadBalancer) AddServer(addr string) {
 		addr:                addr,
 		active:              true,
 		healthCheckEndpoint: "/health",
+		weight:              1,
+		connections:         atomic.Int32{},
 	})
 }
 
 func (lb *L7LoadBalancer) PickServer() types.Server {
-	// TODO: load balancing algo
-	if len(lb.servers) > 0 {
-		return lb.servers[0]
-	}
-	return &HTTPServer{"127.0.0.1:8081", true, "/health"}
+	return lb.algo.NextServer()
 }
 
 func (lb *L7LoadBalancer) Start() error {
@@ -44,6 +46,7 @@ func (lb *L7LoadBalancer) Start() error {
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		return fmt.Errorf("Error while starting the loadbalancer")
 	}
+
 	return nil
 }
 
@@ -71,4 +74,9 @@ func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	log.Println("Replied with response")
+}
+
+func (lb *L7LoadBalancer) Stop() {
+	log.Println("Stoping L7 Load Balancer...")
+	os.Exit(0)
 }

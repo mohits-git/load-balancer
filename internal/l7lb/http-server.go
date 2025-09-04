@@ -3,6 +3,7 @@ package l7lb
 import (
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/mohits-git/load-balancer/internal/utils"
@@ -12,6 +13,8 @@ type HTTPServer struct {
 	addr                string
 	active              bool
 	healthCheckEndpoint string
+	weight              int
+	connections         atomic.Int32
 }
 
 func (s *HTTPServer) IsHealthy() bool {
@@ -23,6 +26,21 @@ func (s *HTTPServer) IsHealthy() bool {
 		return false
 	}
 	return true
+}
+
+// returns server's remote addr
+func (s *HTTPServer) GetAddr() string {
+	return s.addr
+}
+
+// returns servers weightage
+func (s *HTTPServer) GetWeight() int {
+	return s.weight
+}
+
+// returns number of active connections to the server
+func (s *HTTPServer) GetConnectionsCount() int {
+	return int(s.connections.Load())
 }
 
 // forwards the request to the backend server

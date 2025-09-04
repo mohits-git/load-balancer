@@ -4,12 +4,15 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync/atomic"
 )
 
 // TCPServer is types.Server implementation for TCP servers
 type TCPServer struct {
-	addr   string
-	active bool
+	addr        string
+	active      bool
+	weight      int
+	connections atomic.Int32
 }
 
 // TCPServer.IsHealthy returns true if server is running
@@ -21,6 +24,21 @@ func (s *TCPServer) IsHealthy() bool {
 	}
 	conn.Close()
 	return true
+}
+
+// return server's remote addr
+func (s *TCPServer) GetAddr() string {
+	return s.addr
+}
+
+// returns servers weightage
+func (s *TCPServer) GetWeight() int {
+	return s.weight
+}
+
+// returns number of active connections to the server
+func (s *TCPServer) GetConnectionsCount() int {
+	return int(s.connections.Load())
 }
 
 // TCPServer.DoRequest dial tcp connection with the server

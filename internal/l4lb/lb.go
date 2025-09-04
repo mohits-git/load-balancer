@@ -6,9 +6,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
+	"sync/atomic"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 )
@@ -18,26 +17,34 @@ type L4LoadBalancer struct {
 	servers  []types.Server
 	listener net.Listener
 	connWg   *sync.WaitGroup
+	algo     types.LoadBalancingAlgorithm
 }
 
 // returns new l4 load balancer
-func NewL4LoadBalancer() types.LoadBalancer {
+func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
 	return &L4LoadBalancer{
 		servers:  []types.Server{},
 		listener: nil,
 		connWg:   &sync.WaitGroup{},
+		algo:     lbalgo,
 	}
 }
 
 // adds a new tcp server with address as 'addr'
 func (lb *L4LoadBalancer) AddServer(addr string) {
-	lb.servers = append(lb.servers, &TCPServer{addr, true})
+	server := &TCPServer{
+		addr,
+		true,
+		1,
+		atomic.Int32{},
+	}
+	lb.algo.AddServer(server)
+	lb.servers = append(lb.servers, server)
 }
 
 // uses load balancing algorithms to pick a server to forward next req to
 func (lb *L4LoadBalancer) PickServer() types.Server {
-	// TODO: from load balancing algo -> lb.servers[i]
-	return &TCPServer{"127.0.0.1:8081", true}
+	return lb.algo.NextServer()
 }
 
 // starts the load balancer tcp server
@@ -48,34 +55,25 @@ func (lb *L4LoadBalancer) Start() error {
 	}
 	lb.listener = ln
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
 	connChan := make(chan net.Conn, 100)
 	go lb.acceptConnections(connChan)
 
-	for {
-		select {
-		case <-sigChan:
-			lb.stop()
-		case conn := <-connChan:
-			lb.connWg.Add(1)
-			go lb.handleConn(conn)
-		default:
-			continue
-		}
+	for conn := range connChan {
+		lb.connWg.Add(1)
+		go lb.handleConn(conn)
 	}
+	return nil
 }
 
 func (lb *L4LoadBalancer) acceptConnections(connChan chan net.Conn) {
 	defer close(connChan)
 	for {
 		conn, err := lb.listener.Accept()
-		if err != nil && !errors.Is(err, net.ErrClosed) {
-			panic("Error while Accepting a new tcp connection")
-		}
 		if err != nil && errors.Is(err, net.ErrClosed) {
 			return
+		}
+		if err != nil {
+			panic("Error while Accepting a new tcp connection")
 		}
 		connChan <- conn
 	}
@@ -111,7 +109,10 @@ func (lb *L4LoadBalancer) handleConn(conn net.Conn) {
 	fmt.Println(string(resp))
 }
 
-func (lb *L4LoadBalancer) stop() {
+func (lb *L4LoadBalancer) Stop() {
+	if lb.listener == nil {
+		os.Exit(0)
+	}
 	log.Println("Stoping the L4 LoadBalancer...")
 	if err := lb.listener.Close(); err != nil {
 		panic(fmt.Errorf("Error closing the tcp listener %w", err))
