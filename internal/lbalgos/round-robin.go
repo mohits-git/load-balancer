@@ -20,25 +20,13 @@ func NewRoundRobinAlgo() types.LoadBalancingAlgorithm {
 }
 
 func (rb *RoundRobin) AddServer(server types.Server) {
-	i := slices.IndexFunc(rb.servers, func(e types.Server) bool {
-		if e.GetAddr() != server.GetAddr() {
-			return false
-		}
-		return true
-	})
-	if i != -1 {
-		return
+	if i := slices.IndexFunc(rb.servers, isSameAddr(server)); i == -1 {
+		rb.servers = append(rb.servers, server)
 	}
-	rb.servers = append(rb.servers, server)
 }
 
 func (rb *RoundRobin) RemoveServer(server types.Server) {
-	rb.servers = slices.DeleteFunc(rb.servers, func(e types.Server) bool {
-		if e.GetAddr() != server.GetAddr() {
-			return false
-		}
-		return true
-	})
+	rb.servers = slices.DeleteFunc(rb.servers, isSameAddr(server))
 }
 
 func (rb *RoundRobin) NextServer() types.Server {

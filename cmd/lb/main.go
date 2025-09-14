@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mohits-git/load-balancer/internal/l4lb"
+	"github.com/mohits-git/load-balancer/internal/l7lb"
 	"github.com/mohits-git/load-balancer/internal/lbalgos"
 )
 
@@ -14,7 +14,7 @@ func main() {
 	roundRobin := lbalgos.NewRoundRobinAlgo()
 
 	// lb := l7lb.NewL7LoadBalancer()
-	lb := l4lb.NewL4LoadBalancer(roundRobin)
+	lb := l7lb.NewL7LoadBalancer(roundRobin)
 	lb.AddServer("127.0.0.1:8081")
 	lb.AddServer("127.0.0.1:8082")
 	lb.AddServer("127.0.0.1:8083")

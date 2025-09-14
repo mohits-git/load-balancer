@@ -25,13 +25,15 @@ func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
 }
 
 func (lb *L7LoadBalancer) AddServer(addr string) {
-	lb.servers = append(lb.servers, &HTTPServer{
+	server := &HTTPServer{
 		addr:                addr,
 		active:              true,
 		healthCheckEndpoint: "/health",
 		weight:              1,
 		connections:         atomic.Int32{},
-	})
+	}
+	lb.servers = append(lb.servers, server)
+	lb.algo.AddServer(server)
 }
 
 func (lb *L7LoadBalancer) PickServer() types.Server {

@@ -1,4 +1,4 @@
-// utils package contains the shared utility helper functions for the loadbalancer and some testbackend codebase
+// utils package contains the shared utility helper functions for the loadbalancer
 package utils
 
 import (
