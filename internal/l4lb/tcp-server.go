@@ -37,6 +37,14 @@ func (s *TCPServer) IsHealthy() bool {
 	return true
 }
 
+func (s *TCPServer) IsActive() bool {
+	return s.active
+}
+
+func (s *TCPServer) SetActive(active bool) {
+	s.active = active
+}
+
 // return server's remote addr
 func (s *TCPServer) GetAddr() string {
 	return s.addr

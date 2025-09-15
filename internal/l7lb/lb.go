@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 	"github.com/mohits-git/load-balancer/internal/utils"
@@ -32,7 +33,27 @@ func (lb *L7LoadBalancer) PickServer() types.Server {
 	return lb.algo.NextServer()
 }
 
+func (lb *L7LoadBalancer) StartHealthCheck() {
+	for {
+		<-time.After(10 * time.Second)
+		for _, server := range lb.servers {
+			go func() {
+				if !server.IsHealthy() {
+					server.SetActive(false)
+					lb.algo.RemoveServer(server)
+				} else {
+					if !server.IsActive() {
+						server.SetActive(true)
+						lb.algo.AddServer(server)
+					}
+				}
+			}()
+		}
+	}
+}
+
 func (lb *L7LoadBalancer) Start() error {
+	go lb.StartHealthCheck()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", utils.HTTPRequestLogger(lb.handleNewRequests))
 

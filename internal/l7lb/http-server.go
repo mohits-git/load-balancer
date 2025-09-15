@@ -1,6 +1,7 @@
 package l7lb
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync/atomic"
@@ -29,14 +30,25 @@ func NewHTTPServer(addr, healthCheckEndpoint string) types.Server {
 }
 
 func (s *HTTPServer) IsHealthy() bool {
-	resp, err := http.Get(s.addr + s.healthCheckEndpoint)
+	resp, err := http.Get("http://" + s.addr + s.healthCheckEndpoint) // TODO: join path safely
 	if err != nil {
+		fmt.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
 		return false
 	}
 	if resp.StatusCode != http.StatusOK {
+		fmt.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
 		return false
 	}
+	fmt.Println("Server active")
 	return true
+}
+
+func (s *HTTPServer) IsActive() bool {
+	return s.active
+}
+
+func (s *HTTPServer) SetActive(active bool) {
+	s.active = active
 }
 
 // returns server's remote addr

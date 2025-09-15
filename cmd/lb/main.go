@@ -15,9 +15,9 @@ func main() {
 
 	// servers
 	server1 := l7lb.NewHTTPServer("127.0.0.1:8081", "/health")
-	server1.SetWeight(2)
+	server1.SetWeight(1)
 	server2 := l7lb.NewHTTPServer("127.0.0.1:8082", "/health")
-	server2.SetWeight(3)
+	server2.SetWeight(1)
 	server3 := l7lb.NewHTTPServer("127.0.0.1:8083", "/health")
 
 	// lb := l7lb.NewL7LoadBalancer()
