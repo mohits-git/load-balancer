@@ -1,0 +1,23 @@
+{
+  "protocol": "tcp",
+  "port": 8080,
+  "algorithm": "Weighted Round Robin",
+  "healthCheckInterval": 10,
+  "servers": [
+    {
+      "addr": "127.0.0.1:8081",
+      "healthCheckHTTPEndpoint": "/health",
+      "weight": 2
+    },
+    {
+      "addr": "127.0.0.1:8082",
+      "healthCheckHTTPEndpoint": "/health",
+      "weight": 1
+    },
+    {
+      "addr": "127.0.0.1:8083",
+      "healthCheckHTTPEndpoint": "/health",
+      "weight": 1
+    }
+  ]
+}

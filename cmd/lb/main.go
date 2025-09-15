@@ -6,25 +6,25 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mohits-git/load-balancer/internal/config"
+	"github.com/mohits-git/load-balancer/internal/l4lb"
 	"github.com/mohits-git/load-balancer/internal/l7lb"
 	"github.com/mohits-git/load-balancer/internal/lbalgos"
+	"github.com/mohits-git/load-balancer/internal/types"
 )
 
 func main() {
-	weightedRoundRobin := lbalgos.NewWeightedRoundRobin()
+	cfg := config.LoadConfig()
 
-	// servers
-	server1 := l7lb.NewHTTPServer("127.0.0.1:8081", "/health")
-	server1.SetWeight(1)
-	server2 := l7lb.NewHTTPServer("127.0.0.1:8082", "/health")
-	server2.SetWeight(1)
-	server3 := l7lb.NewHTTPServer("127.0.0.1:8083", "/health")
+	algo := lbalgos.NewLoadBalancerAlgorithm(cfg.Algorithm)
 
-	// lb := l7lb.NewL7LoadBalancer()
-	lb := l7lb.NewL7LoadBalancer(weightedRoundRobin)
-	lb.AddServer(server1)
-	lb.AddServer(server2)
-	lb.AddServer(server3)
+	var lb types.LoadBalancer
+	switch cfg.Protocol {
+	case "http":
+		lb = SetupL7LoadBalancer(cfg, algo)
+	case "tcp":
+		lb = SetupL4LoadBalancer(cfg, algo)
+	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -33,8 +33,30 @@ func main() {
 		lb.Stop()
 	}()
 
-	log.Println("Starting Layer 7 Load Balancer at port :8080")
-	if err := lb.Start(); err != nil {
+	log.Printf("Starting %s Load Balancer at port :%d\n", cfg.Protocol, cfg.Port)
+	if err := lb.Start(cfg.Port); err != nil {
 		log.Println("Error starting the load balancer", err)
 	}
+}
+
+func SetupL7LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) *l7lb.L7LoadBalancer {
+	lb := l7lb.NewL7LoadBalancer(algo)
+	for _, server := range cfg.Servers {
+		httpServer := l7lb.NewHTTPServer(server.Addr, server.HealthCheckHTTPEndpoint)
+		httpServer.SetWeight(server.Weight)
+		lb.AddServer(httpServer)
+
+	}
+	return lb
+}
+
+func SetupL4LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) *l4lb.L4LoadBalancer {
+	lb := l4lb.NewL4LoadBalancer(algo)
+	for _, server := range cfg.Servers {
+		tcpServer := l4lb.NewTCPServer(server.Addr)
+		tcpServer.SetWeight(server.Weight)
+		lb.AddServer(tcpServer)
+
+	}
+	return lb
 }

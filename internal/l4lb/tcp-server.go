@@ -17,7 +17,7 @@ type TCPServer struct {
 	connections atomic.Int32
 }
 
-func NewTCPServer(addr, healthCheckEndpoint string) types.Server {
+func NewTCPServer(addr string) types.Server {
 	return &TCPServer{
 		addr:        addr,
 		active:      true,

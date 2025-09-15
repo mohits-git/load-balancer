@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/mohits-git/load-balancer/internal/types"
@@ -20,7 +21,7 @@ type L4LoadBalancer struct {
 }
 
 // returns new l4 load balancer
-func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
+func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L4LoadBalancer {
 	return &L4LoadBalancer{
 		servers:  []types.Server{},
 		listener: nil,
@@ -41,8 +42,8 @@ func (lb *L4LoadBalancer) pickServer() types.Server {
 }
 
 // starts the load balancer tcp server
-func (lb *L4LoadBalancer) Start() error {
-	ln, err := net.Listen("tcp", ":8080")
+func (lb *L4LoadBalancer) Start(port int) error {
+	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return fmt.Errorf("Error starting a tcp server: %w", err)
 	}

@@ -1,7 +1,6 @@
 package types
 
 type LoadBalancer interface {
-	AddServer(Server)
-	Start() error
+	Start(port int) error
 	Stop()
 }
