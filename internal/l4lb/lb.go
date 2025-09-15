@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"sync"
-	"sync/atomic"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 )
@@ -31,13 +30,7 @@ func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
 }
 
 // adds a new tcp server with address as 'addr'
-func (lb *L4LoadBalancer) AddServer(addr string) {
-	server := &TCPServer{
-		addr,
-		true,
-		1,
-		atomic.Int32{},
-	}
+func (lb *L4LoadBalancer) AddServer(server types.Server) {
 	lb.algo.AddServer(server)
 	lb.servers = append(lb.servers, server)
 }

@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"sync/atomic"
+
+	"github.com/mohits-git/load-balancer/internal/types"
 )
 
 // TCPServer is types.Server implementation for TCP servers
@@ -13,6 +15,15 @@ type TCPServer struct {
 	active      bool
 	weight      int
 	connections atomic.Int32
+}
+
+func NewTCPServer(addr, healthCheckEndpoint string) types.Server {
+	return &TCPServer{
+		addr:        addr,
+		active:      true,
+		weight:      1,
+		connections: atomic.Int32{},
+	}
 }
 
 // TCPServer.IsHealthy returns true if server is running
@@ -34,6 +45,11 @@ func (s *TCPServer) GetAddr() string {
 // returns servers weightage
 func (s *TCPServer) GetWeight() int {
 	return s.weight
+}
+
+// sets servers weightage
+func (s *TCPServer) SetWeight(weight int) {
+	s.weight = weight
 }
 
 // returns number of active connections to the server

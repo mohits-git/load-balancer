@@ -14,13 +14,19 @@ type WeightedRoundRobin struct {
 	mu      *sync.Mutex
 }
 
+func NewWeightedRoundRobin() *WeightedRoundRobin {
+	return &WeightedRoundRobin{
+		current: 0,
+		servers: []types.Server{},
+		weights: []int{},
+		mu:      &sync.Mutex{},
+	}
+}
+
 func (w *WeightedRoundRobin) AddServer(server types.Server) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	i := slices.IndexFunc(w.servers, func(s types.Server) bool {
-		return s.GetAddr() == server.GetAddr()
-	})
-	if i != -1 {
+	if i := slices.IndexFunc(w.servers, isSameAddr(server)); i == -1 {
 		w.servers = append(w.servers, server)
 		w.weights = append(w.weights, server.GetWeight())
 	}
@@ -29,11 +35,10 @@ func (w *WeightedRoundRobin) AddServer(server types.Server) {
 func (w *WeightedRoundRobin) RemoveServer(server types.Server) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	i := slices.IndexFunc(w.servers, func(s types.Server) bool {
-		return s.GetAddr() == server.GetAddr()
-	})
-	w.servers = append(w.servers[:i], w.servers[i+1:]...)
-	w.weights = append(w.weights[:i], w.weights[i+1:]...)
+	if i := slices.IndexFunc(w.servers, isSameAddr(server)); i == -1 {
+		w.servers = append(w.servers[:i], w.servers[i+1:]...)
+		w.weights = append(w.weights[:i], w.weights[i+1:]...)
+	}
 }
 
 func (w *WeightedRoundRobin) NextServer() types.Server {
@@ -41,7 +46,6 @@ func (w *WeightedRoundRobin) NextServer() types.Server {
 	defer w.mu.Unlock()
 
 	currIndex := w.current
-	nextIndex := currIndex
 
 	if currIndex >= len(w.servers) {
 		currIndex = 0
@@ -49,11 +53,13 @@ func (w *WeightedRoundRobin) NextServer() types.Server {
 
 	currWeight := w.weights[currIndex]
 	if currWeight == 0 {
-		// TODO: do weighted load balancing
 		w.weights[currIndex] = w.servers[currIndex].GetWeight()
+		currIndex = (currIndex + 1) % len(w.servers)
+		currWeight = w.weights[currIndex]
 	}
 
-	nextIndex = (int(currIndex) + 1) % len(w.servers)
-	w.current = nextIndex
-	return w.servers[nextIndex]
+	w.weights[currIndex] = currWeight - 1
+
+	w.current = currIndex
+	return w.servers[currIndex]
 }

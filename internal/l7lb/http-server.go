@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mohits-git/load-balancer/internal/types"
 	"github.com/mohits-git/load-balancer/internal/utils"
 )
 
@@ -15,6 +16,16 @@ type HTTPServer struct {
 	healthCheckEndpoint string
 	weight              int
 	connections         atomic.Int32
+}
+
+func NewHTTPServer(addr, healthCheckEndpoint string) types.Server {
+	return &HTTPServer{
+		addr:                addr,
+		healthCheckEndpoint: healthCheckEndpoint,
+		active:              true,
+		weight:              1,
+		connections:         atomic.Int32{},
+	}
 }
 
 func (s *HTTPServer) IsHealthy() bool {
@@ -36,6 +47,11 @@ func (s *HTTPServer) GetAddr() string {
 // returns servers weightage
 func (s *HTTPServer) GetWeight() int {
 	return s.weight
+}
+
+// sets servers weightage
+func (s *HTTPServer) SetWeight(weight int) {
+	s.weight = weight
 }
 
 // returns number of active connections to the server

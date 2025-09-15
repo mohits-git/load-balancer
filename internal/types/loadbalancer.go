@@ -1,7 +1,7 @@
 package types
 
 type LoadBalancer interface {
-	AddServer(addr string)
+	AddServer(Server)
 	Start() error
 	Stop()
 	PickServer() Server

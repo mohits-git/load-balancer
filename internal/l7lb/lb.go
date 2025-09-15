@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync/atomic"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 	"github.com/mohits-git/load-balancer/internal/utils"
@@ -24,14 +23,7 @@ func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
 	}
 }
 
-func (lb *L7LoadBalancer) AddServer(addr string) {
-	server := &HTTPServer{
-		addr:                addr,
-		active:              true,
-		healthCheckEndpoint: "/health",
-		weight:              1,
-		connections:         atomic.Int32{},
-	}
+func (lb *L7LoadBalancer) AddServer(server types.Server) {
 	lb.servers = append(lb.servers, server)
 	lb.algo.AddServer(server)
 }
