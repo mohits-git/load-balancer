@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mohits-git/load-balancer/internal/types"
 	"github.com/mohits-git/load-balancer/internal/utils"
 )
 
@@ -19,7 +18,7 @@ type HTTPServer struct {
 	connections         atomic.Int32
 }
 
-func NewHTTPServer(addr, healthCheckEndpoint string) types.Server {
+func NewHTTPServer(addr, healthCheckEndpoint string) *HTTPServer {
 	return &HTTPServer{
 		addr:                addr,
 		healthCheckEndpoint: healthCheckEndpoint,
@@ -76,11 +75,9 @@ func (s *HTTPServer) GetConnectionsCount() int {
 func (s *HTTPServer) DoRequest(r *http.Request) (*http.Response, error) {
 	clientIP, clientPort := utils.GetHTTPClientRemoteAddrInfo(r)
 
-	client := http.Client{
-		Timeout: 60 * time.Second, // timeout duration
-	}
+	client := http.Client{Timeout: 60 * time.Second}
 
-	url := "http://" + s.addr + r.URL.Path + "?" + r.URL.RawQuery
+	url := "http://" + s.addr + r.URL.Path + "?" + r.URL.RawQuery // TODO: safe join path
 	newReq, err := http.NewRequest(r.Method, url, r.Body)
 	if err != nil {
 		return nil, err

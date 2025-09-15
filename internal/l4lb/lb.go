@@ -36,7 +36,7 @@ func (lb *L4LoadBalancer) AddServer(server types.Server) {
 }
 
 // uses load balancing algorithms to pick a server to forward next req to
-func (lb *L4LoadBalancer) PickServer() types.Server {
+func (lb *L4LoadBalancer) pickServer() types.Server {
 	return lb.algo.NextServer()
 }
 
@@ -86,7 +86,7 @@ func (lb *L4LoadBalancer) handleConn(conn net.Conn) {
 	}
 	fmt.Println(string(reqBuf[:n]))
 
-	server := lb.PickServer()
+	server := lb.pickServer()
 
 	resp, err := server.(*TCPServer).DoRequest(reqBuf)
 	if err != nil {

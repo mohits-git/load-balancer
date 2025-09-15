@@ -33,7 +33,7 @@ func main() {
 		lb.Stop()
 	}()
 
-	log.Println("Starting Layer 4 Load Balancer at port :8080")
+	log.Println("Starting Layer 7 Load Balancer at port :8080")
 	if err := lb.Start(); err != nil {
 		log.Println("Error starting the load balancer", err)
 	}

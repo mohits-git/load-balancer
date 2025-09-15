@@ -13,47 +13,24 @@ import (
 )
 
 type L7LoadBalancer struct {
-	servers []types.Server
+	servers []*HTTPServer
 	algo    types.LoadBalancingAlgorithm
 }
 
-func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) types.LoadBalancer {
+func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L7LoadBalancer {
 	return &L7LoadBalancer{
-		servers: []types.Server{},
+		servers: []*HTTPServer{},
 		algo:    lbalgo,
 	}
 }
 
-func (lb *L7LoadBalancer) AddServer(server types.Server) {
+func (lb *L7LoadBalancer) AddServer(server *HTTPServer) {
 	lb.servers = append(lb.servers, server)
 	lb.algo.AddServer(server)
 }
 
-func (lb *L7LoadBalancer) PickServer() types.Server {
-	return lb.algo.NextServer()
-}
-
-func (lb *L7LoadBalancer) StartHealthCheck() {
-	for {
-		<-time.After(10 * time.Second)
-		for _, server := range lb.servers {
-			go func() {
-				if !server.IsHealthy() {
-					server.SetActive(false)
-					lb.algo.RemoveServer(server)
-				} else {
-					if !server.IsActive() {
-						server.SetActive(true)
-						lb.algo.AddServer(server)
-					}
-				}
-			}()
-		}
-	}
-}
-
 func (lb *L7LoadBalancer) Start() error {
-	go lb.StartHealthCheck()
+	go lb.startHealthCheck()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", utils.HTTPRequestLogger(lb.handleNewRequests))
 
@@ -65,33 +42,86 @@ func (lb *L7LoadBalancer) Start() error {
 	return nil
 }
 
-func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Request) {
-	server := lb.PickServer()
-	resp, err := server.(*HTTPServer).DoRequest(r)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error, unable to do request"))
-		return
+func (lb *L7LoadBalancer) Stop() {
+	log.Println("Stoping L7 Load Balancer...")
+	os.Exit(0)
+}
+
+func (lb *L7LoadBalancer) pickServer() *HTTPServer {
+	server := lb.algo.NextServer()
+	httpServer, ok := server.(*HTTPServer)
+	if !ok {
+		return nil
+	}
+	return httpServer
+}
+
+func (lb *L7LoadBalancer) startHealthCheck() {
+	for {
+		<-time.After(10 * time.Second)
+		for _, server := range lb.servers {
+			go lb.handleHealthCheck(server)
+		}
+	}
+}
+
+func (lb *L7LoadBalancer) handleHealthCheck(server types.Server) bool {
+	if !server.IsHealthy() {
+		server.SetActive(false)
+		lb.algo.RemoveServer(server)
+		return false
+	}
+	if !server.IsActive() {
+		server.SetActive(true)
+		lb.algo.AddServer(server)
+	}
+	return true
+}
+
+func (lb *L7LoadBalancer) doRequestWithRetry(r *http.Request) *http.Response {
+	var resp *http.Response
+	var err error
+
+	// TODO: retry limit, currently: retry to all the servers
+	for range len(lb.servers) {
+		server := lb.pickServer()
+		if server == nil {
+			continue // retry
+		}
+
+		resp, err = server.DoRequest(r)
+		if err != nil {
+			continue // retry
+		}
+
+		if resp != nil {
+			break
+		}
 	}
 
-	// copy headers
+	return resp
+}
+
+func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Request) {
+	resp := lb.doRequestWithRetry(r)
+	if resp == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error, unable to do request"))
+	}
+
+	// write resp headers
 	for k, v := range resp.Header {
 		for _, val := range v {
 			w.Header().Add(k, val)
 		}
 	}
 
+	// write resp received from server
 	defer resp.Body.Close()
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
+	if _, err := io.Copy(w, resp.Body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error, unable to forward response"))
 		return
 	}
 	log.Println("Replied with response")
-}
-
-func (lb *L7LoadBalancer) Stop() {
-	log.Println("Stoping L7 Load Balancer...")
-	os.Exit(0)
 }
