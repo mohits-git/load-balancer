@@ -52,4 +52,10 @@ Add configuration in root of the project in file `config.json`
 - Start Load Balancer:
 `go run ./cmd/lb`
 
-### You can also use test backend servers for testing: `PORT=8081 go run ./tools/tb`
+### Test
+
+- You can also use test backend servers for testing: `PORT=8081 go run ./tools/tb`
+- And after running your test servers and load balancers, you can make multiple concurrent requests with curl (given script): `./scripts/test/make-curl-requests.sh <path_to_urls.txt>` 
+
+> Add your urls.txt and give path to the file
+> example `./urls.txt` at the root of the project
