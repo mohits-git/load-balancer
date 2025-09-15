@@ -5,8 +5,6 @@ import (
 	"log"
 	"net"
 	"sync/atomic"
-
-	"github.com/mohits-git/load-balancer/internal/types"
 )
 
 // TCPServer is types.Server implementation for TCP servers
@@ -17,7 +15,7 @@ type TCPServer struct {
 	connections atomic.Int32
 }
 
-func NewTCPServer(addr string) types.Server {
+func NewTCPServer(addr string) *TCPServer {
 	return &TCPServer{
 		addr:        addr,
 		active:      true,

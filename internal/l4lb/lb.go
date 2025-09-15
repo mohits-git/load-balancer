@@ -8,13 +8,14 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/mohits-git/load-balancer/internal/types"
 )
 
 // Layer 4 Load balancer, distributes tcp requests load to multiple backend servers
 type L4LoadBalancer struct {
-	servers  []types.Server
+	servers  []*TCPServer
 	listener net.Listener
 	connWg   *sync.WaitGroup
 	algo     types.LoadBalancingAlgorithm
@@ -23,7 +24,7 @@ type L4LoadBalancer struct {
 // returns new l4 load balancer
 func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L4LoadBalancer {
 	return &L4LoadBalancer{
-		servers:  []types.Server{},
+		servers:  []*TCPServer{},
 		listener: nil,
 		connWg:   &sync.WaitGroup{},
 		algo:     lbalgo,
@@ -31,18 +32,24 @@ func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L4LoadBalancer {
 }
 
 // adds a new tcp server with address as 'addr'
-func (lb *L4LoadBalancer) AddServer(server types.Server) {
+func (lb *L4LoadBalancer) AddServer(server *TCPServer) {
 	lb.algo.AddServer(server)
 	lb.servers = append(lb.servers, server)
 }
 
 // uses load balancing algorithms to pick a server to forward next req to
-func (lb *L4LoadBalancer) pickServer() types.Server {
-	return lb.algo.NextServer()
+func (lb *L4LoadBalancer) pickServer() *TCPServer {
+	server := lb.algo.NextServer()
+	tcpServer, ok := server.(*TCPServer)
+	if !ok {
+		return nil
+	}
+	return tcpServer
 }
 
 // starts the load balancer tcp server
 func (lb *L4LoadBalancer) Start(port int) error {
+	go lb.startHealthCheck()
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return fmt.Errorf("Error starting a tcp server: %w", err)
@@ -59,6 +66,28 @@ func (lb *L4LoadBalancer) Start(port int) error {
 	return nil
 }
 
+func (lb *L4LoadBalancer) handleHealthCheck(server types.Server) bool {
+	if !server.IsHealthy() {
+		server.SetActive(false)
+		lb.algo.RemoveServer(server)
+		return false
+	}
+	if !server.IsActive() {
+		server.SetActive(true)
+		lb.algo.AddServer(server)
+	}
+	return true
+}
+
+func (lb *L4LoadBalancer) startHealthCheck() {
+	for {
+		<-time.After(10 * time.Second)
+		for _, server := range lb.servers {
+			go lb.handleHealthCheck(server)
+		}
+	}
+}
+
 func (lb *L4LoadBalancer) acceptConnections(connChan chan net.Conn) {
 	defer close(connChan)
 	for {
@@ -71,6 +100,29 @@ func (lb *L4LoadBalancer) acceptConnections(connChan chan net.Conn) {
 		}
 		connChan <- conn
 	}
+}
+
+func (lb *L4LoadBalancer) doRequestWithRetry(reqBuf []byte) []byte {
+	var resp []byte
+	var err error
+
+	for range len(lb.servers) {
+		server := lb.pickServer()
+		if server == nil {
+			continue
+		}
+
+		resp, err = server.DoRequest(reqBuf)
+		if err != nil {
+			continue
+		}
+
+		if resp != nil {
+			break
+		}
+	}
+
+	return resp
 }
 
 func (lb *L4LoadBalancer) handleConn(conn net.Conn) {
@@ -87,10 +139,8 @@ func (lb *L4LoadBalancer) handleConn(conn net.Conn) {
 	}
 	fmt.Println(string(reqBuf[:n]))
 
-	server := lb.pickServer()
-
-	resp, err := server.(*TCPServer).DoRequest(reqBuf)
-	if err != nil {
+	resp := lb.doRequestWithRetry(reqBuf)
+	if resp == nil {
 		conn.Write([]byte("HTTP/1.1 500 Internal Server Error"))
 	}
 

@@ -56,7 +56,6 @@ func SetupL4LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) 
 		tcpServer := l4lb.NewTCPServer(server.Addr)
 		tcpServer.SetWeight(server.Weight)
 		lb.AddServer(tcpServer)
-
 	}
 	return lb
 }
