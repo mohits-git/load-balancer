@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/mohits-git/load-balancer/internal/utils"
+	"github.com/mohits-git/load-balancer/internal/l7lb"
 )
 
 var PORT = ":8081"
@@ -27,8 +27,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", utils.HTTPRequestLogger(HandleHome))
-	mux.HandleFunc("GET /health", utils.HTTPRequestLogger(HandleHealthCheck))
+	mux.HandleFunc("GET /", l7lb.HTTPRequestLogger(HandleHome))
+	mux.HandleFunc("GET /health", l7lb.HTTPRequestLogger(HandleHealthCheck))
 
 	fmt.Println("Server Listening on port", PORT)
 	http.ListenAndServe(PORT, mux)

@@ -1,5 +1,5 @@
-// utils package contains the shared utility helper functions for the loadbalancer
-package utils
+// utils contains the utility helper functions for the loadbalancer
+package l7lb
 
 import (
 	"fmt"

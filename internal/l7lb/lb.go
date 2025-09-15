@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/mohits-git/load-balancer/internal/types"
-	"github.com/mohits-git/load-balancer/internal/utils"
 )
 
 type L7LoadBalancer struct {
@@ -32,7 +31,7 @@ func (lb *L7LoadBalancer) AddServer(server *HTTPServer) {
 func (lb *L7LoadBalancer) Start() error {
 	go lb.startHealthCheck()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", utils.HTTPRequestLogger(lb.handleNewRequests))
+	mux.HandleFunc("/", HTTPRequestLogger(lb.handleNewRequests))
 
 	log.Println("Started load balancer on port 8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {

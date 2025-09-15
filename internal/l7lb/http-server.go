@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
-
-	"github.com/mohits-git/load-balancer/internal/utils"
 )
 
 type HTTPServer struct {
@@ -73,7 +71,7 @@ func (s *HTTPServer) GetConnectionsCount() int {
 // forwards the request to the backend server
 // copys and build a new request
 func (s *HTTPServer) DoRequest(r *http.Request) (*http.Response, error) {
-	clientIP, clientPort := utils.GetHTTPClientRemoteAddrInfo(r)
+	clientIP, clientPort := GetHTTPClientRemoteAddrInfo(r)
 
 	client := http.Client{Timeout: 60 * time.Second}
 
