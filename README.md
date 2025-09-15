@@ -3,6 +3,9 @@
 A simple load balancer implemented in Golang
 
 - Support HTTP (layer 7) and TCP (layer 4) protocols
+- Continuous Health Checks with specific time intervals
+- Request with retry logic
+- Different Load Balancing Algorithms (round robin and weighted round robin for now)
 
 ## Configuration
 Add configuration in root of the project in file `config.json`
