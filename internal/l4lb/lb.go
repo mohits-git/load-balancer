@@ -47,6 +47,9 @@ func (lb *L4LoadBalancer) AddServer(server *TCPServer) {
 // uses load balancing algorithms to pick a server to forward next req to
 func (lb *L4LoadBalancer) pickServer() *TCPServer {
 	server := lb.algo.NextServer()
+	if server == nil {
+		return nil
+	}
 	tcpServer, ok := server.(*TCPServer)
 	if !ok {
 		return nil

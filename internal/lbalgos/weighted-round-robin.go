@@ -49,6 +49,10 @@ func (w *WeightedRoundRobin) NextServer() types.Server {
 
 	currIndex := w.current
 
+	if len(w.servers) == 0 {
+		return nil
+	}
+
 	if currIndex >= len(w.servers) {
 		currIndex = 0
 	}

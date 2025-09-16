@@ -61,7 +61,7 @@ func (lb *L7LoadBalancer) Stop() {
 func (lb *L7LoadBalancer) startHealthCheck() {
 	for {
 		<-time.After(lb.healthCheckInterval)
-    fmt.Println()
+		fmt.Println()
 		for _, server := range lb.servers {
 			go lb.handleHealthCheck(server)
 		}
@@ -97,6 +97,9 @@ func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Reque
 
 func (lb *L7LoadBalancer) pickServer() *HTTPServer {
 	server := lb.algo.NextServer()
+	if server == nil {
+		return nil
+	}
 	httpServer, ok := server.(*HTTPServer)
 	if !ok {
 		return nil

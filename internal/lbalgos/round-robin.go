@@ -31,6 +31,9 @@ func (rb *RoundRobin) RemoveServer(server types.Server) {
 
 func (rb *RoundRobin) NextServer() types.Server {
 	currIndex := rb.current.Load()
+	if len(rb.servers) == 0 {
+		return nil
+	}
 	nextIndex := (int(currIndex) + 1) % len(rb.servers)
 	rb.current.Store(int32(nextIndex))
 	return rb.servers[currIndex]
