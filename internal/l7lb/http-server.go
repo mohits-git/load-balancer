@@ -3,7 +3,9 @@ package l7lb
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"sync/atomic"
 	"time"
 )
@@ -14,6 +16,7 @@ type HTTPServer struct {
 	healthCheckEndpoint string
 	weight              int
 	connections         atomic.Int32
+	client              http.Client
 }
 
 func NewHTTPServer(addr, healthCheckEndpoint string) *HTTPServer {
@@ -23,20 +26,32 @@ func NewHTTPServer(addr, healthCheckEndpoint string) *HTTPServer {
 		active:              true,
 		weight:              1,
 		connections:         atomic.Int32{},
+		client: http.Client{
+			Timeout: 60 * time.Second,
+			Transport: &http.Transport{
+				IdleConnTimeout:   90 * time.Second,
+				DisableKeepAlives: false,
+			},
+		},
 	}
 }
 
 func (s *HTTPServer) IsHealthy() bool {
-	resp, err := http.Get("http://" + s.addr + s.healthCheckEndpoint) // TODO: join path safely
+	reqUrl, err := url.JoinPath("http://", s.addr, s.healthCheckEndpoint)
 	if err != nil {
-		fmt.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
+		log.Println("Invalid address or health check endpoint", err)
+		return false
+	}
+	resp, err := http.Get(reqUrl)
+	if err != nil {
+		log.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
 		return false
 	}
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
+		log.Println("Server found to be not healthy", s.addr, s.healthCheckEndpoint)
 		return false
 	}
-	fmt.Println("Server active")
+	log.Printf("Server %s active", s.addr)
 	return true
 }
 
@@ -73,10 +88,13 @@ func (s *HTTPServer) GetConnectionsCount() int {
 func (s *HTTPServer) DoRequest(r *http.Request) (*http.Response, error) {
 	clientIP, clientPort := GetHTTPClientRemoteAddrInfo(r)
 
-	client := http.Client{Timeout: 60 * time.Second}
+	reqUrl, err := url.JoinPath("http://", s.addr, r.URL.Path)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid address or health check endpoint: %w", err)
+	}
+	reqUrlWithQuery := reqUrl + "?" + r.URL.RawQuery
 
-	url := "http://" + s.addr + r.URL.Path + "?" + r.URL.RawQuery // TODO: safe join path
-	newReq, err := http.NewRequest(r.Method, url, r.Body)
+	newReq, err := http.NewRequest(r.Method, reqUrlWithQuery, r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +105,13 @@ func (s *HTTPServer) DoRequest(r *http.Request) (*http.Response, error) {
 		}
 	}
 	newReq.Header.Set("Host", s.addr)
-	newReq.Header.Set("X-Forwarded-For", clientIP+":"+clientPort)
+	newReq.Header.Set("X-Forwarded-For", net.JoinHostPort(clientIP, clientPort))
 
-	resp, err := client.Do(newReq)
+	resp, err := s.client.Do(newReq)
 	if err != nil {
 		log.Println("Error doing request: ", err)
+		return nil, err
 	}
 
-	return resp, err
+	return resp, nil
 }

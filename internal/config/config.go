@@ -12,6 +12,7 @@ type Config struct {
 	Port                int      `json:"port"`
 	Algorithm           string   `json:"algorithm"`
 	HealthCheckInterval int      `json:"healthCheckInterval"`
+	RetryLimit          int      `json:"retryLimit"`
 	Servers             []Server `json:"servers"`
 }
 

@@ -14,16 +14,23 @@ import (
 )
 
 type L7LoadBalancer struct {
-	servers []*HTTPServer
-	algo    types.LoadBalancingAlgorithm
-	wg      *sync.WaitGroup
+	servers             []*HTTPServer
+	algo                types.LoadBalancingAlgorithm
+	wg                  *sync.WaitGroup
+	healthCheckInterval time.Duration
+	retryLimit          int
 }
 
-func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L7LoadBalancer {
+func NewL7LoadBalancer(lbalgo types.LoadBalancingAlgorithm, healthCheckInterval time.Duration, retryLimit int) *L7LoadBalancer {
+	if healthCheckInterval <= 0 {
+		healthCheckInterval = 10 * time.Second
+	}
 	return &L7LoadBalancer{
-		servers: []*HTTPServer{},
-		algo:    lbalgo,
-		wg:      &sync.WaitGroup{},
+		servers:             []*HTTPServer{},
+		algo:                lbalgo,
+		wg:                  &sync.WaitGroup{},
+		healthCheckInterval: healthCheckInterval,
+		retryLimit:          retryLimit,
 	}
 }
 
@@ -53,7 +60,8 @@ func (lb *L7LoadBalancer) Stop() {
 
 func (lb *L7LoadBalancer) startHealthCheck() {
 	for {
-		<-time.After(10 * time.Second)
+		<-time.After(lb.healthCheckInterval)
+    fmt.Println()
 		for _, server := range lb.servers {
 			go lb.handleHealthCheck(server)
 		}
@@ -67,6 +75,7 @@ func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Reque
 	if resp == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error, unable to do request"))
+		return
 	}
 
 	// write resp headers
@@ -102,6 +111,7 @@ func (lb *L7LoadBalancer) handleHealthCheck(server types.Server) bool {
 		return false
 	}
 	if !server.IsActive() {
+		log.Printf("Adding Server %s Back\n", server.GetAddr())
 		server.SetActive(true)
 		lb.algo.AddServer(server)
 	}
@@ -111,9 +121,11 @@ func (lb *L7LoadBalancer) handleHealthCheck(server types.Server) bool {
 func (lb *L7LoadBalancer) doRequestWithRetry(r *http.Request) *http.Response {
 	var resp *http.Response
 	var err error
-
-	// TODO: retry limit, currently: retry to all the servers
-	for range len(lb.servers) {
+	retryLimit := lb.retryLimit
+	if retryLimit < 1 {
+		retryLimit = len(lb.servers)
+	}
+	for range retryLimit {
 		server := lb.pickServer()
 		if server == nil {
 			continue // retry

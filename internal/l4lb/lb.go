@@ -15,19 +15,26 @@ import (
 
 // Layer 4 Load balancer, distributes tcp requests load to multiple backend servers
 type L4LoadBalancer struct {
-	servers  []*TCPServer
-	listener net.Listener
-	connWg   *sync.WaitGroup
-	algo     types.LoadBalancingAlgorithm
+	servers             []*TCPServer
+	listener            net.Listener
+	connWg              *sync.WaitGroup
+	algo                types.LoadBalancingAlgorithm
+	healthCheckInterval time.Duration
+	retryLimit          int
 }
 
 // returns new l4 load balancer
-func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm) *L4LoadBalancer {
+func NewL4LoadBalancer(lbalgo types.LoadBalancingAlgorithm, healthCheckInterval time.Duration, retryLimit int) *L4LoadBalancer {
+	if healthCheckInterval <= 0 {
+		healthCheckInterval = 10 * time.Second
+	}
 	return &L4LoadBalancer{
-		servers:  []*TCPServer{},
-		listener: nil,
-		connWg:   &sync.WaitGroup{},
-		algo:     lbalgo,
+		servers:             []*TCPServer{},
+		listener:            nil,
+		connWg:              &sync.WaitGroup{},
+		algo:                lbalgo,
+		healthCheckInterval: healthCheckInterval,
+		retryLimit:          retryLimit,
 	}
 }
 
@@ -81,7 +88,7 @@ func (lb *L4LoadBalancer) handleHealthCheck(server types.Server) bool {
 
 func (lb *L4LoadBalancer) startHealthCheck() {
 	for {
-		<-time.After(10 * time.Second)
+		<-time.After(lb.healthCheckInterval)
 		for _, server := range lb.servers {
 			go lb.handleHealthCheck(server)
 		}
@@ -106,7 +113,11 @@ func (lb *L4LoadBalancer) doRequestWithRetry(reqBuf []byte) []byte {
 	var resp []byte
 	var err error
 
-	for range len(lb.servers) {
+	retryLimit := lb.retryLimit
+	if retryLimit <= 0 {
+		retryLimit = len(lb.servers)
+	}
+	for range retryLimit {
 		server := lb.pickServer()
 		if server == nil {
 			continue

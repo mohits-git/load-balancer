@@ -4,8 +4,8 @@ package l7lb
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
-	"strings"
 )
 
 // RequestLogger logs incoming clients requests with client addr info
@@ -37,10 +37,11 @@ func GetHTTPClientRemoteAddrInfo(r *http.Request) (string, string) {
 		addr = xff
 	}
 
-	parts := strings.Split(addr, ":") // ip:port
-	if len(parts) < 2 {
-		return parts[0], ""
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		fmt.Println("Error while parsing address", err)
+		return "", ""
 	}
 
-	return parts[0], parts[1]
+	return host, port
 }

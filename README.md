@@ -17,6 +17,7 @@ Add configuration in root of the project in file `config.json`
   "port": 8080,
   "algorithm": "Weighted Round Robin",
   "healthCheckInterval": 10,
+  "retryLimit": 3,
   "servers": [
     {
       "addr": "127.0.0.1:8081",
@@ -43,6 +44,7 @@ Add configuration in root of the project in file `config.json`
 - `healthCheckInterval`: seconds (int)
 - `addr`: backend server address, format: `ip:port`
 - `healthCheckHTTPEndpoint`: for http mode, health check endpoints url, can omit in tcp mode
+- `retryLimit`: sets the retry limit for each incoming request in case of failure making request to the backend server, load balancer retry the request to next backend server each time the current one fails
 
 ## Project Setup
 - clone repository

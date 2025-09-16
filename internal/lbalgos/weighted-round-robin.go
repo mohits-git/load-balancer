@@ -1,7 +1,7 @@
 package lbalgos
 
 import (
-	"fmt"
+	"log"
 	"slices"
 	"sync"
 
@@ -37,7 +37,7 @@ func (w *WeightedRoundRobin) RemoveServer(server types.Server) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if i := slices.IndexFunc(w.servers, isSameAddr(server)); i != -1 {
-		fmt.Println("Removing server", server.GetAddr())
+		log.Println("Removing server", server.GetAddr())
 		w.servers = append(w.servers[:i], w.servers[i+1:]...)
 		w.weights = append(w.weights[:i], w.weights[i+1:]...)
 	}

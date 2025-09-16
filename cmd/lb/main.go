@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/mohits-git/load-balancer/internal/config"
 	"github.com/mohits-git/load-balancer/internal/l4lb"
@@ -40,7 +41,11 @@ func main() {
 }
 
 func SetupL7LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) *l7lb.L7LoadBalancer {
-	lb := l7lb.NewL7LoadBalancer(algo)
+	lb := l7lb.NewL7LoadBalancer(
+		algo,
+		time.Duration(cfg.HealthCheckInterval)*time.Second,
+		cfg.RetryLimit,
+	)
 	for _, server := range cfg.Servers {
 		httpServer := l7lb.NewHTTPServer(server.Addr, server.HealthCheckHTTPEndpoint)
 		httpServer.SetWeight(server.Weight)
@@ -51,7 +56,11 @@ func SetupL7LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) 
 }
 
 func SetupL4LoadBalancer(cfg *config.Config, algo types.LoadBalancingAlgorithm) *l4lb.L4LoadBalancer {
-	lb := l4lb.NewL4LoadBalancer(algo)
+	lb := l4lb.NewL4LoadBalancer(
+		algo,
+		time.Duration(cfg.HealthCheckInterval)*time.Second,
+		cfg.RetryLimit,
+	)
 	for _, server := range cfg.Servers {
 		tcpServer := l4lb.NewTCPServer(server.Addr)
 		tcpServer.SetWeight(server.Weight)

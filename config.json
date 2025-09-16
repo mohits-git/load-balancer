@@ -1,8 +1,9 @@
 {
-  "protocol": "tcp",
+  "protocol": "http",
   "port": 8080,
   "algorithm": "Weighted Round Robin",
   "healthCheckInterval": 10,
+  "retryLimit": 1,
   "servers": [
     {
       "addr": "127.0.0.1:8081",
