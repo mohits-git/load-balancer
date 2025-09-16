@@ -9,4 +9,4 @@ if [ -z "$urlsFilePath" ]; then
   exit 1
 fi
 
-curl --parallel --parallel-immediate --parallel-max 3 --config "$urlsFilePath"
+curl --parallel --parallel-immediate --config "$urlsFilePath"

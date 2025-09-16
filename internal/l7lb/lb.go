@@ -74,7 +74,7 @@ func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Reque
 	resp := lb.doRequestWithRetry(r)
 	if resp == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error, unable to do request"))
+		w.Write([]byte("Internal Server Error unable to do request\n"))
 		return
 	}
 
@@ -89,7 +89,7 @@ func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Reque
 	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error, unable to forward response"))
+		w.Write([]byte("Internal Server Error unable to forward response\n"))
 		return
 	}
 	log.Println("Replied with response")
