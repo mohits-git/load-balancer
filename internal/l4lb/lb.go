@@ -112,7 +112,7 @@ func (lb *L4LoadBalancer) acceptConnections(connChan chan net.Conn) {
 	}
 }
 
-func (lb *L4LoadBalancer) doRequestWithRetry(reqBuf []byte) []byte {
+func (lb *L4LoadBalancer) doRequestWithRetryAndBackoff(reqBuf []byte) []byte {
 	var resp []byte
 	var err error
 
@@ -123,11 +123,13 @@ func (lb *L4LoadBalancer) doRequestWithRetry(reqBuf []byte) []byte {
 	for range retryLimit {
 		server := lb.pickServer()
 		if server == nil {
+			<-time.After(2 * time.Second)
 			continue
 		}
 
 		resp, err = server.DoRequest(reqBuf)
 		if err != nil {
+			<-time.After(2 * time.Second)
 			continue
 		}
 
@@ -153,7 +155,7 @@ func (lb *L4LoadBalancer) handleConn(conn net.Conn) {
 	}
 	fmt.Println(string(reqBuf[:n]))
 
-	resp := lb.doRequestWithRetry(reqBuf)
+	resp := lb.doRequestWithRetryAndBackoff(reqBuf)
 	if resp == nil {
 		conn.Write([]byte("HTTP/1.1 500 Internal Server Error"))
 	}

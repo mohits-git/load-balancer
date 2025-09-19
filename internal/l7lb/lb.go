@@ -71,7 +71,7 @@ func (lb *L7LoadBalancer) startHealthCheck() {
 func (lb *L7LoadBalancer) handleNewRequests(w http.ResponseWriter, r *http.Request) {
 	lb.wg.Add(1)
 	defer lb.wg.Done()
-	resp := lb.doRequestWithRetry(r)
+	resp := lb.doRequestWithRetryAndBackoff(r)
 	if resp == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error unable to do request\n"))
@@ -121,7 +121,7 @@ func (lb *L7LoadBalancer) handleHealthCheck(server types.Server) bool {
 	return true
 }
 
-func (lb *L7LoadBalancer) doRequestWithRetry(r *http.Request) *http.Response {
+func (lb *L7LoadBalancer) doRequestWithRetryAndBackoff(r *http.Request) *http.Response {
 	var resp *http.Response
 	var err error
 	retryLimit := lb.retryLimit
@@ -131,11 +131,15 @@ func (lb *L7LoadBalancer) doRequestWithRetry(r *http.Request) *http.Response {
 	for range retryLimit {
 		server := lb.pickServer()
 		if server == nil {
+			log.Println("Retrying in 2 seconds")
+			<-time.After(2 * time.Second)
 			continue // retry
 		}
 
 		resp, err = server.DoRequest(r)
 		if err != nil {
+			log.Println("Retrying in 2 seconds")
+			<-time.After(2 * time.Second)
 			continue // retry
 		}
 
