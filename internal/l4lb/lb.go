@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -120,16 +121,21 @@ func (lb *L4LoadBalancer) doRequestWithRetryAndBackoff(reqBuf []byte) []byte {
 	if retryLimit <= 0 {
 		retryLimit = len(lb.servers)
 	}
-	for range retryLimit {
+	for i := range retryLimit + 1 {
+		// backoff
+		if i > 0 {
+			waitPeriod := time.Duration(int(math.Pow(2.0, float64(i-1)))) * time.Second
+			log.Printf("Retrying in %v seconds\n", waitPeriod.Seconds())
+			<-time.After(waitPeriod)
+		}
+
 		server := lb.pickServer()
 		if server == nil {
-			<-time.After(2 * time.Second)
 			continue
 		}
 
 		resp, err = server.DoRequest(reqBuf)
 		if err != nil {
-			<-time.After(2 * time.Second)
 			continue
 		}
 

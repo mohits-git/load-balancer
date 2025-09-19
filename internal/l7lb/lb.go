@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -128,18 +129,21 @@ func (lb *L7LoadBalancer) doRequestWithRetryAndBackoff(r *http.Request) *http.Re
 	if retryLimit < 1 {
 		retryLimit = len(lb.servers)
 	}
-	for range retryLimit {
+	for i := range retryLimit + 1 {
+		// backoff
+		if i > 0 {
+			waitPeriod := time.Duration(int(math.Pow(2.0, float64(i-1)))) * time.Second
+			log.Printf("Retrying in %v seconds\n", waitPeriod.Seconds())
+			<-time.After(waitPeriod)
+		}
+
 		server := lb.pickServer()
 		if server == nil {
-			log.Println("Retrying in 2 seconds")
-			<-time.After(2 * time.Second)
 			continue // retry
 		}
 
 		resp, err = server.DoRequest(r)
 		if err != nil {
-			log.Println("Retrying in 2 seconds")
-			<-time.After(2 * time.Second)
 			continue // retry
 		}
 
